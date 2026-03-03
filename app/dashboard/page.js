@@ -9,6 +9,8 @@ import TabNav from "@/components/dashboard/TabNav";
 import MonitorTab from "@/components/dashboard/MonitorTab";
 import ThresholdPanel from "@/components/dashboard/ThresholdPanel";
 import Toast from "@/components/dashboard/Toast";
+import { useRouter } from "next/navigation";
+import { isAdmin } from "@/lib/auth";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("monitor");
@@ -22,6 +24,18 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState("--");
   const [toast, setToast] = useState({ message: "", visible: false });
   const [alertMsg, setAlertMsg] = useState(null);
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+
+  // Check login on page load
+  useEffect(() => {
+    const stored = sessionStorage.getItem("smartshelf_user");
+    if (!stored) {
+      router.push("/");
+      return;
+    }
+    setUser(JSON.parse(stored));
+  }, [router]);
 
   const fetchLatest = useCallback(async () => {
     try {
@@ -95,11 +109,16 @@ export default function DashboardPage() {
     if (customFrom && customTo) { fetchHistories(); showToast("Custom range applied"); }
   };
 
+  if (!user) return null;
+
   return (
     <div className="max-w-[480px] mx-auto min-h-screen flex flex-col bg-[#f5f7fa]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <TopBar connected={connected} />
+      <TopBar connected={connected} user={user} onLogout={() => {
+        sessionStorage.removeItem("smartshelf_user");
+        router.push("/");
+        }} />
       <AlertBanner message={alertMsg} onClose={() => setAlertMsg(null)} />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} showSettings={isAdmin(user)} />
 
       <main className="flex-1 overflow-y-auto px-4 py-4 pb-6">
         {activeTab === "monitor" && (

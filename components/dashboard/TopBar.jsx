@@ -1,6 +1,6 @@
 "use client";
 
-export default function TopBar({ connected }) {
+export default function TopBar({ connected, user, onLogout }) {
   return (
     <header className="flex items-center justify-between px-5 py-3.5 bg-white border-b border-[#e4e8ee] sticky top-0 z-30">
       <div className="flex items-center gap-2.5">
@@ -12,22 +12,38 @@ export default function TopBar({ connected }) {
           <span className="text-[13px] text-[#8b93a7] font-normal ml-1.5">Store 01</span>
         </div>
       </div>
-      <div
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${
-          connected
-            ? "bg-[#e6faf3] border-[rgba(0,196,140,0.2)] text-[#00a074]"
-            : "bg-[#fff0f0] border-[rgba(255,92,92,0.2)] text-[#ff5c5c]"
-        }`}
-        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-      >
+      <div className="flex items-center gap-2.5">
         <div
-          className={`w-[7px] h-[7px] rounded-full ${
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${
             connected
-              ? "bg-[#00c48c] shadow-[0_0_6px_rgba(0,196,140,0.5)] animate-pulse-dot"
-              : "bg-[#ff5c5c]"
+              ? "bg-[#e6faf3] border-[rgba(0,196,140,0.2)] text-[#00a074]"
+              : "bg-[#fff0f0] border-[rgba(255,92,92,0.2)] text-[#ff5c5c]"
           }`}
-        />
-        {connected ? "Online" : "Offline"}
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          <div
+            className={`w-[7px] h-[7px] rounded-full ${
+              connected
+                ? "bg-[#00c48c] shadow-[0_0_6px_rgba(0,196,140,0.5)] animate-pulse-dot"
+                : "bg-[#ff5c5c]"
+            }`}
+          />
+          {connected ? "Online" : "Offline"}
+        </div>
+        {user && (
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border border-[#e4e8ee] text-[#8b93a7] hover:border-[#ff5c5c] hover:text-[#ff5c5c] transition-colors"
+          >
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded bg-[#f0f2f5]"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {user.role}
+            </span>
+            Logout
+          </button>
+        )}
       </div>
     </header>
   );

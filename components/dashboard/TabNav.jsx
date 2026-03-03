@@ -1,14 +1,16 @@
 "use client";
 
-const TABS = [
+const ALL_TABS = [
   { key: "monitor", icon: "📊", label: "Monitor" },
   { key: "settings", icon: "⚙️", label: "Thresholds" },
 ];
 
-export default function TabNav({ activeTab, onTabChange }) {
+export default function TabNav({ activeTab, onTabChange, showSettings }) {
+  const tabs = showSettings ? ALL_TABS : ALL_TABS.filter((t) => t.key !== "settings");
+
   return (
     <nav className="flex bg-white border-b border-[#e4e8ee] px-5 sticky top-[53px] z-20">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onTabChange(tab.key)}
