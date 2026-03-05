@@ -12,7 +12,7 @@ export default function SensorCard({ config, latest, history }) {
   const style = getStatusStyle(status);
 
   useEffect(() => {
-    if (!canvasRef.current || !history?.data?.length) return;
+    if (!canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -25,23 +25,28 @@ export default function SensorCard({ config, latest, history }) {
     canvas.style.width = rect.width + "px";
     canvas.style.height = rect.height + "px";
 
+    // Clear canvas when no data
+    if (!history?.data?.length) {
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      return;
+    }
+
     const data = history.data;
     const vals = data.map((d) => d.value);
     const minV = Math.min(...vals);
     const maxV = Math.max(...vals);
     const range = maxV - minV || 1;
 
-    // Layout — leave space for labels
-    const padLeft = 40;   // Y axis labels
+    const padLeft = 40;
     const padRight = 10;
     const padTop = 10;
-    const padBottom = 22; // X axis labels
+    const padBottom = 22;
     const chartW = rect.width - padLeft - padRight;
     const chartH = rect.height - padTop - padBottom;
 
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    // Y axis labels (3 lines)
+    // Y axis labels
     ctx.font = "10px 'JetBrains Mono', monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = "#8b93a7";
@@ -49,7 +54,6 @@ export default function SensorCard({ config, latest, history }) {
       const yVal = minV + (range * (2 - i)) / 2;
       const y = padTop + (chartH * i) / 2;
       ctx.fillText(yVal.toFixed(1), padLeft - 6, y + 3);
-      // Grid line
       ctx.strokeStyle = "rgba(0,0,0,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -58,14 +62,51 @@ export default function SensorCard({ config, latest, history }) {
       ctx.stroke();
     }
 
-    // X axis labels (first, middle, last)
+    // X axis labels — smart formatting based on time range
     ctx.textAlign = "center";
     ctx.fillStyle = "#8b93a7";
-    const timeLabels = [0, Math.floor(data.length / 2), data.length - 1];
-    timeLabels.forEach((idx) => {
+
+    const firstTime = new Date(data[0].timestamp).getTime();
+    const lastTime = new Date(data[data.length - 1].timestamp).getTime();
+    const spanMs = lastTime - firstTime;
+    const spanHours = spanMs / (1000 * 60 * 60);
+
+    let labelCount, formatLabel;
+
+    if (spanHours <= 1) {
+      labelCount = 3;
+      formatLabel = (date) => date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    } else if (spanHours <= 6) {
+      labelCount = 4;
+      formatLabel = (date) => date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    } else if (spanHours <= 24) {
+      labelCount = 5;
+      formatLabel = (date) => date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    } else {
+      labelCount = 7;
+      formatLabel = (date) => {
+        const today = new Date();
+        const isToday = date.toDateString() === today.toDateString();
+        if (isToday) return "Today";
+        return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+      };
+    }
+
+    const labelIndices = [];
+    for (let i = 0; i < labelCount; i++) {
+      labelIndices.push(Math.round((i / (labelCount - 1)) * (data.length - 1)));
+    }
+
+    const uniqueLabels = [...new Set(labelIndices)];
+    uniqueLabels.forEach((idx) => {
       const x = padLeft + (idx / (data.length - 1)) * chartW;
       const date = new Date(data[idx].timestamp);
-      const label = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      const label = formatLabel(date);
+      if (x < padLeft + 15 || x > padLeft + chartW - 15) {
+        ctx.textAlign = x < padLeft + 15 ? "left" : "right";
+      } else {
+        ctx.textAlign = "center";
+      }
       ctx.fillText(label, x, rect.height - 4);
     });
 
@@ -156,10 +197,24 @@ export default function SensorCard({ config, latest, history }) {
       {/* Chart */}
       <div className="w-full h-[140px] rounded-lg bg-[#f0f2f5] relative overflow-hidden">
         <canvas ref={canvasRef} className="w-full h-full" />
+        {history && history.data && history.data.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[12px] text-[#8b93a7] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              No data available for this period
+            </span>
+          </div>
+        )}
+        {!history && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[12px] text-[#8b93a7] font-medium">
+              Loading...
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
-      {stats && (
+      {stats && history?.data?.length > 0 &&  (
         <div className="flex gap-3 mt-2.5 pt-2.5 border-t border-[#e4e8ee]">
           {[
             { label: "Min", val: stats.min },

@@ -76,8 +76,12 @@ export default function DashboardPage() {
     return () => clearInterval(timer);
   }, [fetchLatest, fetchHistories, activeTab]);
 
-  useEffect(() => { fetchHistories(); }, [timeRange, fetchHistories]);
-
+  useEffect(() => {
+    // Clear old history when switching time range
+    setHistories({});
+    fetchHistories();
+  }, [timeRange, fetchHistories]);
+  
   const showToast = (msg) => {
     setToast({ message: msg, visible: true });
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
