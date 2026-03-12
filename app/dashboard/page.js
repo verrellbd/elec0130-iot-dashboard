@@ -138,6 +138,7 @@ export default function DashboardPage() {
             onApplyCustom={handleApplyCustom}
             lastUpdated={lastUpdated}
             onExport={handleExport}
+            thresholds={thresholds}
           />
         )}
         {activeTab === "settings" && (

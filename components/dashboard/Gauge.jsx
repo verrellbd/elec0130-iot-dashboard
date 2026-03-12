@@ -10,14 +10,16 @@ export default function Gauge({ config, latest }) {
   const status = reading?.status ?? "NORMAL";
   const style = getStatusStyle(status);
 
-  const ranges = {
-    temperature: { min: -5, max: 40 },
-    humidity: { min: 0, max: 100 },
-  };
-  const r = ranges[config.key] || { min: 0, max: 100 };
+  const r = config.range || { min: 0, max: 100 };
   const pct = typeof value === "number"
     ? Math.max(0, Math.min(1, (value - r.min) / (r.max - r.min)))
     : 0;
+
+  const displayValue = typeof value === "number"
+    ? config.key === "tvoc_level" ? Math.round(value)
+    : config.key === "uvIndex" ? value.toFixed(2)
+    : value.toFixed(1)
+    : value;
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -86,7 +88,6 @@ export default function Gauge({ config, latest }) {
 
   return (
     <div className="bg-white rounded-xl border border-[#e4e8ee] p-5 mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-shadow">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-2">
         <div
           className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center text-[17px]"
@@ -100,7 +101,6 @@ export default function Gauge({ config, latest }) {
         </div>
       </div>
 
-      {/* Gauge */}
       <div className="flex flex-col items-center">
         <canvas ref={canvasRef} />
         <div style={{ marginTop: "-12px" }}>
@@ -108,7 +108,7 @@ export default function Gauge({ config, latest }) {
             className="text-[28px] font-bold tracking-tighter leading-none"
             style={{ fontFamily: "'JetBrains Mono', monospace", color: config.color }}
           >
-            {typeof value === "number" ? value.toFixed(1) : value}
+            {displayValue}
           </span>
           <span className="text-[13px] font-medium ml-0.5" style={{ color: "#8b93a7" }}>{config.unit}</span>
         </div>

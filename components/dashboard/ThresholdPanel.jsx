@@ -2,10 +2,10 @@
 
 const SECTIONS = [
   {
-    title: "Environment",
+    title: "Temperature",
     icon: "🌡",
     iconBg: "#fff0f0",
-    name: "Temperature",
+    name: "Temperature Range",
     togglePath: ["temperature", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["temperature", "min"], unit: "°C", step: 0.5 },
@@ -14,13 +14,55 @@ const SECTIONS = [
   },
   {
     title: "",
+    icon: "🔥",
+    iconBg: "#fff0f0",
+    name: "Temperature Control",
+    togglePath: ["temp_control", "enabled"],
+    fields: [
+      { label: "LED Warning At", path: ["temp_control", "led_threshold"], unit: "°C", step: 0.5 },
+      { label: "Danger (Fan+Buzzer)", path: ["temp_control", "danger_threshold"], unit: "°C", step: 0.5 },
+    ],
+  },
+  {
+    title: "Humidity",
     icon: "💧",
     iconBg: "#eef5ff",
-    name: "Humidity",
+    name: "Humidity Range",
     togglePath: ["humidity", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["humidity", "min"], unit: "%", step: 1 },
       { label: "Max Threshold", path: ["humidity", "max"], unit: "%", step: 1 },
+    ],
+  },
+  {
+    title: "Inventory",
+    icon: "⚖️",
+    iconBg: "#e6faf3",
+    name: "Weight Sensor",
+    togglePath: ["weight", "enabled"],
+    fields: [
+      { label: "Low Stock Below", path: ["weight", "low_stock"], unit: "g", step: 50 },
+    ],
+  },
+  {
+    title: "Air Quality",
+    icon: "🧪",
+    iconBg: "#f3f0ff",
+    name: "TVOC Gas Sensor",
+    togglePath: ["tvoc", "enabled"],
+    fields: [
+      { label: "Fan On At Level", path: ["tvoc", "fan_threshold"], unit: "Lv", step: 1 },
+      { label: "Buzzer At Level", path: ["tvoc", "buzzer_threshold"], unit: "Lv", step: 1 },
+    ],
+  },
+  {
+    title: "Lighting",
+    icon: "☀️",
+    iconBg: "#fff5eb",
+    name: "Light Sensor",
+    togglePath: ["light", "enabled"],
+    fields: [
+      { label: "Too Dark Below", path: ["light", "threshold"], unit: "lux", step: 1 },
     ],
   },
 ];

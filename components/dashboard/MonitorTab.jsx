@@ -4,17 +4,9 @@ import { ACTIVE_SENSORS } from "@/lib/sensors";
 import SensorCard from "./SensorCard";
 import BigNumber from "./BigNumber";
 import Gauge from "./Gauge";
+import DeviceControl from "./DeviceControl";
+import AnomalyInsights from "./AnomalyInsights";
 import TimeFilter from "./TimeFilter";
-
-// Define which style each sensor uses in real-time mode
-const REALTIME_STYLE = {
-  temperature: "bignumber",
-  humidity: "gauge",
-  // When you add more sensors later, set them here:
-  // light: "bignumber",
-  // gas: "gauge",
-  // weight: "bignumber",
-};
 
 export default function MonitorTab({
   latest,
@@ -28,6 +20,7 @@ export default function MonitorTab({
   onApplyCustom,
   lastUpdated,
   onExport,
+  thresholds,  
 }) {
   const isRealtime = timeRange === "realtime";
 
@@ -45,14 +38,21 @@ export default function MonitorTab({
 
       {ACTIVE_SENSORS.map((s) => {
         if (isRealtime) {
-          const style = REALTIME_STYLE[s.key] || "bignumber";
-          if (style === "gauge") {
+          if (s.realtimeStyle === "gauge") {
             return <Gauge key={s.key} config={s} latest={latest} />;
           }
           return <BigNumber key={s.key} config={s} latest={latest} />;
         }
         return <SensorCard key={s.key} config={s} latest={latest} history={histories[s.key]} />;
       })}
+
+      {/* Device Control + Anomaly Insights — only in real-time mode */}
+      {isRealtime && (
+        <>
+          <DeviceControl latest={latest} />
+          <AnomalyInsights latest={latest} thresholds={thresholds} />
+        </>
+      )}
 
       <div className="flex items-center justify-between mt-2">
         <p className="text-[11px] text-[#8b93a7]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>

@@ -8,19 +8,20 @@ export default function BigNumber({ config, latest }) {
   const status = reading?.status ?? "NORMAL";
   const style = getStatusStyle(status);
 
-  // Calculate bar fill percentage based on range
-  const ranges = {
-    temperature: { min: -5, max: 40 },
-    humidity: { min: 0, max: 100 },
-  };
-  const r = ranges[config.key] || { min: 0, max: 100 };
+  const r = config.range || { min: 0, max: 100 };
   const pct = typeof value === "number"
     ? Math.max(0, Math.min(100, ((value - r.min) / (r.max - r.min)) * 100))
     : 0;
 
+  // Format value based on sensor type
+  const displayValue = typeof value === "number"
+    ? config.key === "weight" ? Math.round(value)
+    : config.key === "pressure" ? value.toFixed(2)
+    : value.toFixed(1)
+    : value;
+
   return (
     <div className="bg-white rounded-xl border border-[#e4e8ee] p-5 mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-shadow flex items-center gap-4">
-      {/* Left side */}
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-3">
           <div
@@ -39,7 +40,7 @@ export default function BigNumber({ config, latest }) {
             className="text-[44px] font-bold leading-none tracking-tighter"
             style={{ fontFamily: "'JetBrains Mono', monospace", color: config.color }}
           >
-            {typeof value === "number" ? value.toFixed(1) : value}
+            {displayValue}
           </span>
           <span className="text-[16px] font-medium ml-0.5" style={{ color: "#8b93a7" }}>{config.unit}</span>
         </div>
@@ -51,7 +52,6 @@ export default function BigNumber({ config, latest }) {
         </span>
       </div>
 
-      {/* Right side — vertical bar */}
       <div className="flex flex-col items-center">
         <div className="w-[10px] h-[90px] bg-[#f0f2f5] rounded-[5px] relative overflow-hidden">
           <div
