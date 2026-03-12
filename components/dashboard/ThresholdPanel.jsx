@@ -6,21 +6,10 @@ const SECTIONS = [
     icon: "🌡",
     iconBg: "#fff0f0",
     name: "Temperature Range",
-    togglePath: ["temperature", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["temperature", "min"], unit: "°C", step: 0.5 },
       { label: "Max Threshold", path: ["temperature", "max"], unit: "°C", step: 0.5 },
-    ],
-  },
-  {
-    title: "",
-    icon: "🔥",
-    iconBg: "#fff0f0",
-    name: "Temperature Control",
-    togglePath: ["temp_control", "enabled"],
-    fields: [
-      { label: "LED Warning At", path: ["temp_control", "led_threshold"], unit: "°C", step: 0.5 },
-      { label: "Danger (Fan+Buzzer)", path: ["temp_control", "danger_threshold"], unit: "°C", step: 0.5 },
+      { label: "Danger Threshold", path: ["temperature", "danger"], unit: "°C", step: 0.5 },
     ],
   },
   {
@@ -28,7 +17,6 @@ const SECTIONS = [
     icon: "💧",
     iconBg: "#eef5ff",
     name: "Humidity Range",
-    togglePath: ["humidity", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["humidity", "min"], unit: "%", step: 1 },
       { label: "Max Threshold", path: ["humidity", "max"], unit: "%", step: 1 },
@@ -39,7 +27,6 @@ const SECTIONS = [
     icon: "⚖️",
     iconBg: "#e6faf3",
     name: "Weight Sensor",
-    togglePath: ["weight", "enabled"],
     fields: [
       { label: "Low Stock Below", path: ["weight", "low_stock"], unit: "g", step: 50 },
     ],
@@ -49,10 +36,9 @@ const SECTIONS = [
     icon: "🧪",
     iconBg: "#f3f0ff",
     name: "TVOC Gas Sensor",
-    togglePath: ["tvoc", "enabled"],
     fields: [
-      { label: "Fan On At Level", path: ["tvoc", "fan_threshold"], unit: "Lv", step: 1 },
-      { label: "Buzzer At Level", path: ["tvoc", "buzzer_threshold"], unit: "Lv", step: 1 },
+      { label: "Fan On At Level",    path: ["tvoc", "fan_threshold"],    unit: "Lv", step: 1 },
+      { label: "Buzzer At Level",    path: ["tvoc", "buzzer_threshold"], unit: "Lv", step: 1 },
     ],
   },
   {
@@ -60,9 +46,18 @@ const SECTIONS = [
     icon: "☀️",
     iconBg: "#fff5eb",
     name: "Light Sensor",
-    togglePath: ["light", "enabled"],
     fields: [
       { label: "Too Dark Below", path: ["light", "threshold"], unit: "lux", step: 1 },
+    ],
+  },
+  {
+    title: "Freshness",
+    icon: "🎨",
+    iconBg: "#e6faf3",
+    name: "RGB Color Sensor",
+    fields: [
+      { label: "Aging Above",   path: ["freshness", "aging_threshold"],   unit: "bi",  step: 0.01 },
+      { label: "Spoiled Above", path: ["freshness", "spoiled_threshold"], unit: "bi",  step: 0.01 },
     ],
   },
 ];
@@ -83,7 +78,6 @@ function setVal(obj, path, val) {
 
 export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }) {
   const handleChange = (path, val) => onChange(setVal(thresholds, path, val));
-  const handleToggle = (path) => onChange(setVal(thresholds, path, !getVal(thresholds, path)));
 
   let lastTitle = "";
 
@@ -92,7 +86,6 @@ export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }
       {SECTIONS.map((sec, si) => {
         const showTitle = sec.title && sec.title !== lastTitle;
         if (sec.title) lastTitle = sec.title;
-        const isOn = sec.togglePath ? getVal(thresholds, sec.togglePath) : true;
 
         return (
           <div key={si}>
@@ -102,6 +95,7 @@ export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }
               </div>
             )}
             <div className="bg-white rounded-xl border border-[#e4e8ee] p-4 mb-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              {/* Header */}
               <div className="flex items-center gap-2.5 mb-3.5">
                 <div
                   className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-[14px]"
@@ -109,21 +103,18 @@ export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }
                 >
                   {sec.icon}
                 </div>
-                <div className="flex-1 text-[13px] font-semibold">{sec.name}</div>
-                {sec.togglePath && (
-                  <button
-                    onClick={() => handleToggle(sec.togglePath)}
-                    className={`relative w-10 h-[22px] rounded-full transition-colors ${isOn ? "bg-[#00c48c]" : "bg-[#d1d7e0]"}`}
-                  >
-                    <div className={`absolute top-[2px] left-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform ${isOn ? "translate-x-[18px]" : "translate-x-0"}`} />
-                  </button>
-                )}
+                <div className="flex-1 text-[13px] font-semibold text-[#1a1d26]">
+                  {sec.name}
+                </div>
               </div>
 
+              {/* Fields */}
               {sec.fields.map((f, fi) => (
                 <div
                   key={fi}
-                  className={`flex items-center justify-between py-2 ${fi > 0 ? "border-t border-[#e4e8ee]" : ""}`}
+                  className={`flex items-center justify-between py-2 ${
+                    fi > 0 ? "border-t border-[#e4e8ee]" : ""
+                  }`}
                 >
                   <span className="text-[12px] text-[#5a6175] font-medium">{f.label}</span>
                   <div className="flex items-center gap-1.5">
@@ -131,7 +122,9 @@ export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }
                       type="number"
                       value={getVal(thresholds, f.path) ?? 0}
                       step={f.step}
-                      onChange={(e) => handleChange(f.path, parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        handleChange(f.path, parseFloat(e.target.value) || 0)
+                      }
                       className="w-[70px] px-2.5 py-1.5 border border-[#e4e8ee] rounded-lg text-[13px] font-medium text-center text-[#1a1d26] bg-[#f0f2f5] outline-none focus:border-[#00c48c] focus:bg-white transition-colors"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     />
@@ -149,6 +142,7 @@ export default function ThresholdPanel({ thresholds, onChange, onSave, onReset }
         );
       })}
 
+      {/* Footer buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e4e8ee] p-3 flex gap-2.5 max-w-[480px] mx-auto z-30">
         <button
           onClick={onReset}

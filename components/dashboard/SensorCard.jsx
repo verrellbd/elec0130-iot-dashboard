@@ -173,24 +173,26 @@ export default function SensorCard({ config, latest, history }) {
             <div className="text-[11px] text-[#8b93a7]">{config.subtitle}</div>
           </div>
         </div>
+
+        {/* Right side — only show when there is history data */}
         <div className="text-right">
-          <div>
-            <span
-              className="text-2xl font-bold tracking-tighter leading-none"
-              style={{ fontFamily: "'JetBrains Mono', monospace", color: config.color }}
-            >
-              {typeof value === "number"
-                ? config.key === "weight" ? Math.round(value) : value.toFixed(1)
-                : value}
-            </span>
-            <span className="text-xs text-[#8b93a7] font-medium ml-0.5">{config.unit}</span>
-          </div>
-          <span
-            className={`inline-block px-2 py-0.5 rounded-[10px] text-[10px] font-semibold mt-1 ${style.className}`}
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            {style.label}
-          </span>
+          {history?.data?.length > 0 && (
+            <>
+              <div>
+                <span
+                  className="text-2xl font-bold tracking-tighter leading-none"
+                  style={{ fontFamily: "'JetBrains Mono', monospace", color: config.color }}
+                >
+                  {typeof value === "number"
+                    ? config.key === "weight" ? Math.round(value) : value.toFixed(1)
+                    : value}
+                </span>
+                <span className="text-xs text-[#8b93a7] font-medium ml-0.5">
+                  {config.unit}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -199,7 +201,10 @@ export default function SensorCard({ config, latest, history }) {
         <canvas ref={canvasRef} className="w-full h-full" />
         {history && history.data && history.data.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[12px] text-[#8b93a7] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <span
+              className="text-[12px] text-[#8b93a7] font-medium"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
               No data available for this period
             </span>
           </div>
@@ -214,7 +219,7 @@ export default function SensorCard({ config, latest, history }) {
       </div>
 
       {/* Stats */}
-      {stats && history?.data?.length > 0 &&  (
+      {stats && history?.data?.length > 0 && (
         <div className="flex gap-3 mt-2.5 pt-2.5 border-t border-[#e4e8ee]">
           {[
             { label: "Min", val: stats.min },
@@ -229,7 +234,7 @@ export default function SensorCard({ config, latest, history }) {
                 className="text-[13px] font-semibold mt-0.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                {config.key === "weight" ? Math.round(s.val) : s.val.toFixed(1)}
+                {config.key === "weight" ? Math.round(s.val) : s.val?.toFixed(1)}
                 <span className="text-[10px] text-[#8b93a7] ml-0.5">{config.unit}</span>
               </div>
             </div>

@@ -41,14 +41,29 @@ export default function DashboardPage() {
     try {
       const data = await getLatestReadings();
       setLatest(data);
-      setConnected(true);
+
+      // Online only if last reading is fresher than 30s
+      const ageMs = Date.now() - new Date(data.timestamp).getTime();
+      const isOnline = ageMs < 30000;
+      setConnected(isOnline);
+
       setLastUpdated(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      if (data.temperature.status === "HIGH" || data.temperature.status === "LOW") {
-        setAlertMsg(`Temperature ${data.temperature.value}°C — ${data.temperature.status}!`);
-      } else if (data.gas.status === "SPOILED" || data.gas.status === "REMOVE") {
-        setAlertMsg(`TVOC ${data.gas.value} ppb — ${data.gas.status}!`);
-      } else if (data.weight.status === "EMPTY") {
-        setAlertMsg(`Shelf EMPTY (${data.weight.value}g) — Restock needed!`);
+
+      // Alert conditions
+      if (isOnline) {
+        if (data.temperature?.status === "HIGH" || data.temperature?.status === "LOW") {
+          setAlertMsg(`Temperature ${data.temperature.value}°C — ${data.temperature.status}!`);
+        } else if (data.tvoc_level?.status === "DANGER") {
+          setAlertMsg(`TVOC Level ${data.tvoc_level.value} — DANGER!`);
+        } else if (data.weight?.status === "LOW_STOCK") {
+          setAlertMsg(`Low Stock (${data.weight.value}g) — Restock needed!`);
+        } else if (data.freshness?.status === "SPOILED") {
+          setAlertMsg(`Freshness SPOILED — Remove item!`);
+        } else {
+          setAlertMsg(null);
+        }
+      } else {
+        setAlertMsg(null); // clear alert when offline
       }
     } catch {
       setConnected(false);
@@ -139,6 +154,7 @@ export default function DashboardPage() {
             lastUpdated={lastUpdated}
             onExport={handleExport}
             thresholds={thresholds}
+            connected={connected}
           />
         )}
         {activeTab === "settings" && (
