@@ -5,11 +5,12 @@ const SECTIONS = [
     title: "Temperature",
     icon: "🌡",
     iconBg: "#fff0f0",
-    name: "Temperature Range",
+    name: "Temperature Control",
+    togglePath: ["temperature", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["temperature", "min"], unit: "°C", step: 0.5 },
       { label: "Max Threshold", path: ["temperature", "max"], unit: "°C", step: 0.5 },
-      { label: "Danger Threshold", path: ["temperature", "danger"], unit: "°C", step: 0.5 },
+      { label: "Danger (Fan+Buzzer)", path: ["temperature", "danger"], unit: "°C", step: 0.5 },
     ],
   },
   {
@@ -17,6 +18,7 @@ const SECTIONS = [
     icon: "💧",
     iconBg: "#eef5ff",
     name: "Humidity Range",
+    togglePath: ["humidity", "enabled"],
     fields: [
       { label: "Min Threshold", path: ["humidity", "min"], unit: "%", step: 1 },
       { label: "Max Threshold", path: ["humidity", "max"], unit: "%", step: 1 },
@@ -27,6 +29,7 @@ const SECTIONS = [
     icon: "⚖️",
     iconBg: "#e6faf3",
     name: "Weight Sensor",
+    togglePath: ["weight", "enabled"],
     fields: [
       { label: "Low Stock Below", path: ["weight", "low_stock"], unit: "g", step: 50 },
     ],
@@ -36,9 +39,10 @@ const SECTIONS = [
     icon: "🧪",
     iconBg: "#f3f0ff",
     name: "TVOC Gas Sensor",
+    togglePath: ["tvoc", "enabled"],
     fields: [
-      { label: "Fan On At Level",    path: ["tvoc", "fan_threshold"],    unit: "Lv", step: 1 },
-      { label: "Buzzer At Level",    path: ["tvoc", "buzzer_threshold"], unit: "Lv", step: 1 },
+      { label: "Fan On At Level", path: ["tvoc", "fan_threshold"], unit: "Lv", step: 1 },
+      { label: "Buzzer At Level", path: ["tvoc", "buzzer_threshold"], unit: "Lv", step: 1 },
     ],
   },
   {
@@ -46,6 +50,7 @@ const SECTIONS = [
     icon: "☀️",
     iconBg: "#fff5eb",
     name: "Light Sensor",
+    togglePath: ["light", "enabled"],
     fields: [
       { label: "Too Dark Below", path: ["light", "threshold"], unit: "lux", step: 1 },
     ],
@@ -53,15 +58,15 @@ const SECTIONS = [
   {
     title: "Freshness",
     icon: "🎨",
-    iconBg: "#e6faf3",
-    name: "RGB Color Sensor",
+    iconBg: "#fdf2f8",
+    name: "Color Freshness (RGB)",
+    togglePath: ["freshness", "enabled"],
     fields: [
-      { label: "Aging Above",   path: ["freshness", "aging_threshold"],   unit: "bi",  step: 0.01 },
-      { label: "Spoiled Above", path: ["freshness", "spoiled_threshold"], unit: "bi",  step: 0.01 },
+      { label: "Aging Threshold", path: ["freshness", "aging_threshold"], unit: "Δ", step: 0.01 },
+      { label: "Spoiled Threshold", path: ["freshness", "spoiled_threshold"], unit: "Δ", step: 0.01 },
     ],
   },
 ];
-
 function getVal(obj, path) {
   let c = obj;
   for (const k of path) c = c?.[k];
