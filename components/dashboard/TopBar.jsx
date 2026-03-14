@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function TopBar({ connected, user, onLogout }) {
   return (
     <header className="flex items-center justify-between px-5 py-3.5 bg-white border-b border-[#e4e8ee] sticky top-0 z-30">
@@ -30,6 +32,15 @@ export default function TopBar({ connected, user, onLogout }) {
           />
           {connected ? "Online" : "Offline"}
         </div>
+
+        <Link
+          href="/bigscreen"
+          className="flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold border border-[#e4e8ee] text-[#8b93a7] hover:border-[#00c48c] hover:text-[#00a074] transition-colors"
+          title="Open BigScreen Analytics"
+        >
+          ⊞ BigScreen
+        </Link>
+
         {user && (
           <button
             onClick={onLogout}
