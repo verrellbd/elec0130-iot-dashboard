@@ -95,7 +95,7 @@ export default function AnomalyInsights({ latest, thresholds }) {
       }
 
       // ── Low Stock ──────────────────────────────────────────
-      const lowStockThreshold = thresh?.low_stock_weight ?? 500;
+      const lowStockThreshold = thresh?.weight?.low_stock ?? 500;
       const weightVal = cur.weight?.value ?? null;
       if (weightVal !== null) {
         const lowCount = weightHistory.filter(
@@ -110,8 +110,8 @@ export default function AnomalyInsights({ latest, thresholds }) {
       }
 
       // ── Temperature ────────────────────────────────────────
-      const tempMin = thresh?.temperature_min ?? 0;
-      const tempMax = thresh?.temperature_max ?? 8;
+      const tempMin = thresh?.temperature?.min ?? 0;
+      const tempMax = thresh?.temperature?.max ?? 8;
       const tempVal = cur.temperature?.value ?? null;
       if (tempVal !== null) {
         const outCount = tempHistory.filter(
@@ -129,8 +129,8 @@ export default function AnomalyInsights({ latest, thresholds }) {
       }
 
       // ── Humidity ───────────────────────────────────────────
-      const humidMin = thresh?.humidity_min ?? 85;
-      const humidMax = thresh?.humidity_max ?? 95;
+      const humidMin = thresh?.humidity?.min ?? 85;
+      const humidMax = thresh?.humidity?.max ?? 95;
       const humidVal = cur.humidity?.value ?? null;
       if (humidVal !== null) {
         const outCount = humidHistory.filter(
