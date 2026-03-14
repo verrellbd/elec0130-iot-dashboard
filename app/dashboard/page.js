@@ -39,7 +39,7 @@ export default function DashboardPage() {
 
   const fetchLatest = useCallback(async () => {
     try {
-      const data = await getLatestReadings();
+      const data = await getLatestReadings(thresholds);
       setLatest(data);
 
       // Online only if last reading is fresher than 30s
@@ -68,7 +68,7 @@ export default function DashboardPage() {
     } catch {
       setConnected(false);
     }
-  }, []);
+  }, [thresholds]);
 
   const fetchHistories = useCallback(async () => {
     const results = {};
