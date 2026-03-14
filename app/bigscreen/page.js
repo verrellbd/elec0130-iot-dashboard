@@ -416,6 +416,7 @@ export default function BigScreen() {
       fetchLatestData();
       fetchEnvHistory();
       fetchWeightHistory();
+      getThresholds().then(setThresholds).catch(() => {});
     }, 30000);
     return () => clearInterval(timer);
   }, [fetchLatestData, fetchEnvHistory, fetchWeightHistory, fetchAnomalyHistory, router]);
@@ -487,7 +488,7 @@ export default function BigScreen() {
   const weightStatus = getSensorStatus("weight",      latest?.weight?.value      ?? null, thresholds);
   const tvocStatus   = getSensorStatus("tvoc_level",  tvocLevel >= 0 ? tvocLevel : null,  thresholds);
 
-  const isSystemAlert = !!latest && (tempStatus === "HIGH" || tempStatus === "DANGER");
+  const isSystemAlert = !!latest && (tempStatus === "LOW" || tempStatus === "HIGH" || tempStatus === "DANGER");
   const isLowStock    = !!latest && weightStatus === "LOW STOCK";
   const isHumidAlert  = !!latest && (humidStatus === "TOO WET" || humidStatus === "TOO DRY");
   const isBadAir      = !!latest && (tvocStatus === "POOR AIR" || tvocStatus === "SEVERE AIR");
@@ -805,10 +806,12 @@ export default function BigScreen() {
             <AlertRow
               icon="🌡" label="Temperature"
               isActive={isSystemAlert}
-              activeColor={tempStatus === "DANGER" ? "#ff4444" : "#f87171"}
+              activeColor={tempStatus === "DANGER" ? "#ff4444" : tempStatus === "LOW" ? "#38bdf8" : "#f87171"}
               badge={isSystemAlert ? tempStatus : "NORMAL"}
               hint={tempStatus === "DANGER"
                 ? "Temperature critical · Fan + Buzzer triggered"
+                : tempStatus === "LOW"
+                ? "Temperature below min threshold · Risk of freezing"
                 : "Temperature above max threshold · Check cooling"}
             />
             <AlertRow
