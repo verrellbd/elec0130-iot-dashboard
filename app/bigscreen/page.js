@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getLatestReadings, getHistory, getRawHistory } from "@/lib/dashboard-api";
+import { getLatestReadings, getHistory, getRawHistory, getThresholds, getDefaultThresholds } from "@/lib/dashboard-api";
 import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -20,9 +20,11 @@ const METRICS = [
 
 const STATUS_COLOR = {
   NORMAL: "#34d399", OK: "#34d399", FRESH: "#34d399", GOOD: "#34d399", STORE_OPEN: "#34d399",
-  HIGH: "#f87171",   LOW: "#f87171", DANGER: "#f87171", SPOILED: "#f87171",
+  HIGH: "#f87171",   LOW: "#38bdf8", DANGER: "#ff4444", SPOILED: "#f87171",
   EMPTY: "#f87171",  REMOVE: "#f87171", OUT_OF_RANGE: "#f87171",
-  WARNING: "#fbbf24", AGING: "#fbbf24", LOW_STOCK: "#fbbf24", DARK: "#94a3b8",
+  WARNING: "#fbbf24", AGING: "#fbbf24", "LOW STOCK": "#fbbf24", LOW_STOCK: "#fbbf24", DARK: "#94a3b8",
+  "TOO WET": "#60a5fa", "TOO DRY": "#fbbf24",
+  "POOR AIR": "#fbbf24", "SEVERE AIR": "#f87171",
 };
 
 const TIME_RANGES = [
@@ -61,29 +63,73 @@ function fmtDuration(ms) {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
-// Build anomaly event list from raw history records
-const ANOMALY_TYPES = [
-  { key: "alert",    label: "System Alert", icon: "⚠",  color: "#f87171" },
-  { key: "badAir",   label: "Bad Air",      icon: "💨", color: "#f87171" },
-  { key: "lowStock", label: "Low Stock",    icon: "📦", color: "#fbbf24" },
-];
+// Sensor status from live reading vs thresholds
+function getSensorStatus(key, value, thr) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  if (key === "temperature") {
+    if (value > thr.temperature.danger) return "DANGER";
+    if (value > thr.temperature.max)    return "HIGH";
+    if (value < thr.temperature.min)    return "LOW";
+    return "NORMAL";
+  }
+  if (key === "humidity") {
+    if (value > thr.humidity.max) return "TOO WET";
+    if (value < thr.humidity.min) return "TOO DRY";
+    return "NORMAL";
+  }
+  if (key === "weight") {
+    if (value < 0) return null;
+    return value < thr.weight.low_stock ? "LOW STOCK" : "OK";
+  }
+  if (key === "tvoc_level") {
+    if (value < 0) return null;
+    if (value >= thr.tvoc.buzzer_threshold) return "SEVERE AIR";
+    if (value >= thr.tvoc.fan_threshold)    return "POOR AIR";
+    return "GOOD";
+  }
+  return null;
+}
+
+// Anomaly types derived from thresholds
+function getAnomalyTypes(thr) {
+  return [
+    { key: "tempDanger", label: "Temp Danger",         icon: "🌡", color: "#ff4444",
+      check: r => Number.isFinite(r.temperature) && r.temperature > thr.temperature.danger },
+    { key: "tempHigh",   label: "Temp High",            icon: "🌡", color: "#f87171",
+      check: r => Number.isFinite(r.temperature) && r.temperature > thr.temperature.max && r.temperature <= thr.temperature.danger },
+    { key: "tempLow",    label: "Temp Low",             icon: "🌡", color: "#38bdf8",
+      check: r => Number.isFinite(r.temperature) && r.temperature < thr.temperature.min },
+    { key: "tooWet",     label: "Humidity Too Wet",     icon: "💧", color: "#60a5fa",
+      check: r => Number.isFinite(r.humidity) && r.humidity > thr.humidity.max },
+    { key: "tooDry",     label: "Humidity Too Dry",     icon: "💧", color: "#fbbf24",
+      check: r => Number.isFinite(r.humidity) && r.humidity < thr.humidity.min },
+    { key: "severeAir",  label: "Severe Air Quality",   icon: "💨", color: "#f87171",
+      check: r => r.tvoc >= 0 && r.tvoc >= thr.tvoc.buzzer_threshold },
+    { key: "poorAir",    label: "Poor Air Quality",     icon: "💨", color: "#fbbf24",
+      check: r => r.tvoc >= 0 && r.tvoc >= thr.tvoc.fan_threshold && r.tvoc < thr.tvoc.buzzer_threshold },
+    { key: "lowStock",   label: "Low-stock Sleep Mode", icon: "📦", color: "#fbbf24",
+      check: r => Number.isFinite(r.weight) && r.weight >= 0 && r.weight < thr.weight.low_stock },
+  ];
+}
+
 const ACTUATOR_META = {
   fan:    { icon: "🌀", label: "Fan" },
   led:    { icon: "💡", label: "LED" },
   buzzer: { icon: "🔊", label: "Buzzer" },
 };
 
-function buildAnomalyEvents(records) {
+function buildAnomalyEvents(records, thresholds) {
   if (!records || records.length === 0) return [];
+  const anomalyTypes = getAnomalyTypes(thresholds);
   const events = [];
 
-  for (const atype of ANOMALY_TYPES) {
+  for (const atype of anomalyTypes) {
     let startRec = null;
     let actFirst = {};
     let actLast  = {};
 
     for (const rec of records) {
-      if (rec[atype.key]) {
+      if (atype.check(rec)) {
         if (!startRec) { startRec = rec; actFirst = {}; actLast = {}; }
         for (const a of ["fan", "led", "buzzer"]) {
           if (rec[a]) { if (!actFirst[a]) actFirst[a] = rec.timestamp; actLast[a] = rec.timestamp; }
@@ -298,9 +344,11 @@ export default function BigScreen() {
   const [envRange,   setEnvRange]   = useState("1h");
   const [customFrom,    setCustomFrom]    = useState("");
   const [customTo,      setCustomTo]      = useState("");
-  const [anomalyEvents,   setAnomalyEvents]   = useState([]);
-  const [anomalyPage,     setAnomalyPage]     = useState(0);
-  const [expandedAnomaly, setExpandedAnomaly] = useState(null);
+  const [thresholds,        setThresholds]        = useState(getDefaultThresholds());
+  const [rawAnomalyRecords, setRawAnomalyRecords] = useState([]);
+  const [anomalyEvents,     setAnomalyEvents]     = useState([]);
+  const [anomalyPage,       setAnomalyPage]       = useState(0);
+  const [expandedAnomaly,   setExpandedAnomaly]   = useState(null);
 
   // Refs for stable timer callbacks (avoids stale closures)
   const envRangeRef   = useRef("1h");
@@ -346,13 +394,21 @@ export default function BigScreen() {
 
   const fetchAnomalyHistory = useCallback(async () => {
     const records = await getRawHistory("7d").catch(() => []);
-    setAnomalyEvents(buildAnomalyEvents(records));
+    setRawAnomalyRecords(records);
   }, []);
+
+  // Recompute anomaly events whenever raw records or thresholds change
+  useEffect(() => {
+    setAnomalyEvents(buildAnomalyEvents(rawAnomalyRecords, thresholds));
+    setAnomalyPage(0);
+    setExpandedAnomaly(null);
+  }, [rawAnomalyRecords, thresholds]);
 
   // Initial load + 30s auto-refresh
   useEffect(() => {
     const stored = sessionStorage.getItem("smartshelf_user");
     if (!stored) { router.push("/"); return; }
+    getThresholds().then(setThresholds).catch(() => {});
     fetchLatestData();
     fetchWeightHistory();
     fetchAnomalyHistory();
@@ -425,6 +481,27 @@ export default function BigScreen() {
 
   const freshClr = ({ FRESH: "#34d399", AGING: "#fbbf24", SPOILED: "#f87171", REMOVE: "#f87171" })[freshness] || "#94a3b8";
 
+  // Threshold-based status for MetricCards and AlertRows
+  const tempStatus   = getSensorStatus("temperature", latest?.temperature?.value ?? null, thresholds);
+  const humidStatus  = getSensorStatus("humidity",    latest?.humidity?.value    ?? null, thresholds);
+  const weightStatus = getSensorStatus("weight",      latest?.weight?.value      ?? null, thresholds);
+  const tvocStatus   = getSensorStatus("tvoc_level",  tvocLevel >= 0 ? tvocLevel : null,  thresholds);
+
+  const isSystemAlert = !!latest && (tempStatus === "HIGH" || tempStatus === "DANGER");
+  const isLowStock    = !!latest && weightStatus === "LOW STOCK";
+  const isHumidAlert  = !!latest && (humidStatus === "TOO WET" || humidStatus === "TOO DRY");
+  const isBadAir      = !!latest && (tvocStatus === "POOR AIR" || tvocStatus === "SEVERE AIR");
+
+  // Hardware fault detection
+  // Temperature: fault only if no reading (negatives are valid physics)
+  // All others: fault if no reading OR value < 0
+  const faultedSensors = latest ? METRICS.filter(m => {
+    const v = latest[m.key]?.value;
+    if (v === null || v === undefined) return true;
+    if (m.key !== "temperature" && v < 0) return true;
+    return false;
+  }) : [];
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -484,11 +561,12 @@ export default function BigScreen() {
         {/* ── LEFT: Live sensor metrics (no pressure) ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: "#0e3040", textTransform: "uppercase", marginBottom: 2 }}>Live Sensors</div>
-          {METRICS.map(m => {
+          {METRICS.filter(m => m.key !== "illuminance").map(m => {
             const reading = latest?.[m.key];
             return (
               <MetricCard key={m.key} label={m.label} icon={m.icon}
-                value={reading?.value ?? null} unit={m.unit} color={m.color} status={reading?.status} />
+                value={reading?.value ?? null} unit={m.unit} color={m.color}
+                status={getSensorStatus(m.key, reading?.value ?? null, thresholds)} />
             );
           })}
 
@@ -559,6 +637,36 @@ export default function BigScreen() {
 
         {/* ── CENTER: 3 panels ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+
+          {/* ── Hardware Fault Banner ── */}
+          {faultedSensors.length > 0 && (
+            <div style={{
+              flexShrink: 0, borderRadius: 8, padding: "8px 14px",
+              background: "rgba(248,113,113,0.08)",
+              border: "1px solid rgba(248,113,113,0.35)",
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>⚠</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#f87171", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>
+                  Hardware Fault Detected
+                </div>
+                <div style={{ fontSize: 9, color: "#c05050", fontFamily: "monospace", lineHeight: 1.5 }}>
+                  {faultedSensors.map(m => (
+                    <span key={m.key} style={{
+                      display: "inline-block", marginRight: 8, padding: "1px 6px",
+                      borderRadius: 3, background: "rgba(248,113,113,0.12)",
+                      border: "1px solid rgba(248,113,113,0.2)",
+                    }}>
+                      {m.icon} {m.label}
+                    </span>
+                  ))}
+                  <span style={{ marginLeft: 4, color: "#7a3030" }}>— no valid reading</span>
+                </div>
+              </div>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", boxShadow: "0 0 8px #f87171", flexShrink: 0 }} />
+            </div>
+          )}
 
           {/* Chart 1 — Temperature + Humidity dual-line with time range selector */}
           <div style={{
@@ -695,25 +803,38 @@ export default function BigScreen() {
               Alert Status
             </div>
             <AlertRow
-              icon="⚠" label="System Alert"
-              isActive={act.alert}
-              activeColor="#f87171"
-              badge={act.alert ? "TRIGGERED" : "ALL CLEAR"}
-              hint="Sensor threshold exceeded · Check readings immediately"
+              icon="🌡" label="Temperature"
+              isActive={isSystemAlert}
+              activeColor={tempStatus === "DANGER" ? "#ff4444" : "#f87171"}
+              badge={isSystemAlert ? tempStatus : "NORMAL"}
+              hint={tempStatus === "DANGER"
+                ? "Temperature critical · Fan + Buzzer triggered"
+                : "Temperature above max threshold · Check cooling"}
+            />
+            <AlertRow
+              icon="💧" label="Humidity"
+              isActive={isHumidAlert}
+              activeColor="#60a5fa"
+              badge={isHumidAlert ? humidStatus : "NORMAL"}
+              hint={humidStatus === "TOO WET"
+                ? "Humidity above max · Risk of mould / condensation"
+                : "Humidity below min · Product may dry out"}
             />
             <AlertRow
               icon="📦" label="Stock Level"
-              isActive={act.lowStock}
+              isActive={isLowStock}
               activeColor="#fbbf24"
-              badge={act.lowStock ? "RESTOCK NOW" : "SUFFICIENT"}
-              hint="Shelf weight below minimum · Restock required"
+              badge={isLowStock ? "LOW STOCK" : "SUFFICIENT"}
+              hint="Weight below threshold · Restock required · Sleep mode active"
             />
             <AlertRow
               icon="💨" label="Air Quality"
-              isActive={act.badAir}
-              activeColor="#f87171"
-              badge={act.badAir ? "UNSAFE" : "NORMAL"}
-              hint="TVOC elevated · Ventilate shelf area"
+              isActive={isBadAir}
+              activeColor={tvocStatus === "SEVERE AIR" ? "#f87171" : "#fbbf24"}
+              badge={isBadAir ? tvocStatus : "NORMAL"}
+              hint={tvocStatus === "SEVERE AIR"
+                ? "TVOC critical · Buzzer alarm triggered"
+                : "TVOC elevated · Ventilation fan active"}
             />
           </div>
 
