@@ -37,38 +37,30 @@ export default function DashboardPage() {
     setUser(JSON.parse(stored));
   }, [router]);
 
+  const OFFLINE_TIMEOUT = 15000;
+
   const fetchLatest = useCallback(async () => {
     try {
       const data = await getLatestReadings(thresholds);
       setLatest(data);
 
-      // Online only if last reading is fresher than 30s
-      const ageMs = Date.now() - new Date(data.timestamp).getTime();
-      const isOnline = ageMs < 30000;
-      setConnected(isOnline);
+      const lastTs = new Date(data.timestamp).getTime();
+      const ageMs = Date.now() - lastTs;
+      setConnected(ageMs < OFFLINE_TIMEOUT);
 
-      setLastUpdated(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setLastUpdated(
+        new Date(lastTs).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        })
+      );
 
-      // Alert conditions
-      if (isOnline) {
-        if (data.temperature?.status === "HIGH" || data.temperature?.status === "LOW") {
-          setAlertMsg(`Temperature ${data.temperature.value}°C — ${data.temperature.status}!`);
-        } else if (data.tvoc_level?.status === "DANGER") {
-          setAlertMsg(`TVOC Level ${data.tvoc_level.value} — DANGER!`);
-        } else if (data.weight?.status === "LOW_STOCK") {
-          setAlertMsg(`Low Stock (${data.weight.value}g) — Restock needed!`);
-        } else if (data.freshness?.status === "SPOILED") {
-          setAlertMsg(`Freshness SPOILED — Remove item!`);
-        } else {
-          setAlertMsg(null);
-        }
-      } else {
-        setAlertMsg(null); // clear alert when offline
-      }
     } catch {
       setConnected(false);
     }
   }, [thresholds]);
+
 
   const fetchHistories = useCallback(async () => {
     const results = {};
@@ -87,7 +79,7 @@ export default function DashboardPage() {
     const timer = setInterval(() => {
       fetchLatest();
       if (activeTab === "monitor") fetchHistories();
-    }, 5000);
+    }, 15000);
     return () => clearInterval(timer);
   }, [fetchLatest, fetchHistories, activeTab]);
 
